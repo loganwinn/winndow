@@ -9,6 +9,7 @@
 	<key>CFBundlePackageType</key><string>APPL</string>
 	<key>CFBundleShortVersionString</key><string>__VERSION__</string>
 	<key>CFBundleVersion</key><string>__VERSION__</string>
+	<key>CFBundleIconFile</key><string>AppIcon</string>
 	<key>LSMinimumSystemVersion</key><string>13.0</string>
 	<key>LSUIElement</key><true/>
 	<key>NSHumanReadableCopyright</key><string>MIT License. Window math modeled on Spectacle by Eric Czarny.</string>

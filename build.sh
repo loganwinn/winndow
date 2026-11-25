@@ -21,6 +21,7 @@ for arch in arm64 x86_64; do
 done
 lipo -create build/Winndow-arm64 build/Winndow-x86_64 -output "$APP/Contents/MacOS/Winndow"
 sed "s/__VERSION__/$VERSION/g" Info.plist > "$APP/Contents/Info.plist"
+cp Icon/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 # A stable local identity keeps macOS's Accessibility grant across rebuilds; CI falls back to ad-hoc.
 if [[ -z "${SIGN_IDENTITY:-}" ]] && security find-identity -p codesigning | grep -q "Winndow Local Signing"; then
   SIGN_IDENTITY="Winndow Local Signing"

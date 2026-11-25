@@ -48,4 +48,4 @@ Pushing a tag like `v1.0.0` builds the app on GitHub Actions and attaches `Winnd
 
 ## Credits
 
-The window-position math follows Spectacle's published calculations (MIT, © Eric Czarny). Winndow is written from scratch in Swift and is also MIT licensed.
+Winndow's icon carries the LW pentagon mark, Logan Winn's personal brand mark; it is not covered by the MIT license. The window-position math follows Spectacle's published calculations (MIT, © Eric Czarny). Winndow is written from scratch in Swift and is also MIT licensed.
