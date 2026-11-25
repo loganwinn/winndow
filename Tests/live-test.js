@@ -1,5 +1,6 @@
 // Live end-to-end test: presses Winndow's real shortcuts on a TextEdit window and checks where it lands.
 // Run: osascript -l JavaScript Tests/live-test.js   (Winndow running, Spectacle quit, single display)
+// Expects the default shortcuts: any action you rebound in Edit Shortcuts will show as FAIL here.
 ObjC.import("AppKit")
 const se = Application("System Events")
 const te = Application("TextEdit")
@@ -15,7 +16,7 @@ const fl = Math.floor, hh = fl(vf.h / 2), w3 = fl(vf.w / 3), h3 = fl(vf.h / 3)
 const frame = () => { const b = te.windows[0].bounds(); return [b.x, b.y, b.width, b.height] }
 const setFrame = (x, y, w, h) => { te.windows[0].bounds = { x, y, width: w, height: h }; delay(0.3) }
 const M = { cmd: "command down", opt: "option down", ctrl: "control down", shift: "shift down" }
-const press = (code, ...mods) => { se.keyCode(code, { using: mods.map(m => M[m]) }); delay(0.6) }
+const press = (code, ...mods) => { te.activate(); delay(0.2); se.keyCode(code, { using: mods.map(m => M[m]) }); delay(0.6) }
 const L = 123, R = 124, D = 125, U = 126, C = 8, F = 3, Z = 6
 
 let pass = 0, fail = 0

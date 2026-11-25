@@ -11,9 +11,9 @@ let fail = 0
 const check = (name, want) => { const g = frame(), ok = g.every((x, i) => Math.abs(x - want[i]) <= 2); if (!ok) fail++; console.log(`${ok ? "PASS" : "FAIL"} ${name}: got ${g} want ${want}`) }
 
 reset()
-se.keyCode(20, { using: ["command down"] }); delay(0.6); check("⌘3 -> first third", [vf.x, vf.y, w3, vf.h])
-se.keyCode(20, { using: ["command down"] }); delay(0.6); check("⌘3 again -> second third", [vf.x + w3, vf.y, w3, vf.h])
+te.activate(); delay(0.2); se.keyCode(20, { using: ["command down"] }); delay(0.6); check("⌘3 -> first third", [vf.x, vf.y, w3, vf.h])
+te.activate(); delay(0.2); se.keyCode(20, { using: ["command down"] }); delay(0.6); check("⌘3 again -> second third", [vf.x + w3, vf.y, w3, vf.h])
 reset()
-se.keyCode(124, { using: ["control down", "option down"] }); delay(0.6); check("old ⌃⌥→ does nothing now", [200, 200, 800, 500])
+te.activate(); delay(0.2); se.keyCode(124, { using: ["control down", "option down"] }); delay(0.6); check("old ⌃⌥→ does nothing now", [200, 200, 800, 500])
 te.documents[0].close({ saving: "no" })
 console.log(fail ? `${fail} failed` : "rebind: all passed")
