@@ -1,47 +1,5 @@
 import AppKit
-import Carbon.HIToolbox
 import ServiceManagement
-
-// MARK: - Shortcuts (Spectacle's defaults)
-
-struct Shortcut { let key: Int; let mods: NSEvent.ModifierFlags }
-
-let shortcuts: [Action: Shortcut] = [
-    .center: .init(key: kVK_ANSI_C, mods: [.option, .command]),
-    .fullscreen: .init(key: kVK_ANSI_F, mods: [.option, .command]),
-    .leftHalf: .init(key: kVK_LeftArrow, mods: [.option, .command]),
-    .rightHalf: .init(key: kVK_RightArrow, mods: [.option, .command]),
-    .topHalf: .init(key: kVK_UpArrow, mods: [.option, .command]),
-    .bottomHalf: .init(key: kVK_DownArrow, mods: [.option, .command]),
-    .upperLeft: .init(key: kVK_LeftArrow, mods: [.control, .command]),
-    .lowerLeft: .init(key: kVK_LeftArrow, mods: [.control, .shift, .command]),
-    .upperRight: .init(key: kVK_RightArrow, mods: [.control, .command]),
-    .lowerRight: .init(key: kVK_RightArrow, mods: [.control, .shift, .command]),
-    .nextDisplay: .init(key: kVK_RightArrow, mods: [.control, .option, .command]),
-    .previousDisplay: .init(key: kVK_LeftArrow, mods: [.control, .option, .command]),
-    .nextThird: .init(key: kVK_RightArrow, mods: [.control, .option]),
-    .previousThird: .init(key: kVK_LeftArrow, mods: [.control, .option]),
-    .larger: .init(key: kVK_RightArrow, mods: [.control, .option, .shift]),
-    .smaller: .init(key: kVK_LeftArrow, mods: [.control, .option, .shift]),
-    .undo: .init(key: kVK_ANSI_Z, mods: [.option, .command]),
-    .redo: .init(key: kVK_ANSI_Z, mods: [.option, .shift, .command]),
-]
-
-func carbonMods(_ m: NSEvent.ModifierFlags) -> UInt32 {
-    var r: UInt32 = 0
-    if m.contains(.command) { r |= UInt32(cmdKey) }
-    if m.contains(.option) { r |= UInt32(optionKey) }
-    if m.contains(.control) { r |= UInt32(controlKey) }
-    if m.contains(.shift) { r |= UInt32(shiftKey) }
-    return r
-}
-
-func keyEquivalent(_ key: Int) -> String {
-    let arrows = [kVK_LeftArrow: NSLeftArrowFunctionKey, kVK_RightArrow: NSRightArrowFunctionKey,
-                  kVK_UpArrow: NSUpArrowFunctionKey, kVK_DownArrow: NSDownArrowFunctionKey]
-    if let a = arrows[key] { return String(Character(UnicodeScalar(a)!)) }
-    return [kVK_ANSI_C: "c", kVK_ANSI_F: "f", kVK_ANSI_Z: "z"][key] ?? ""
-}
 
 // MARK: - Accessibility window access
 
@@ -128,66 +86,53 @@ func promptForAccessibility() {
     _ = AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
 }
 
-// MARK: - Global hotkeys (Carbon, needs no extra permission)
-
-let actionsByID = Action.allCases
-func registerHotkeys() -> [Action] {
-    var failed: [Action] = []
-    var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
-    InstallEventHandler(GetApplicationEventTarget(), { _, event, _ in
-        var id = EventHotKeyID()
-        GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID),
-                          nil, MemoryLayout<EventHotKeyID>.size, nil, &id)
-        performAction(actionsByID[Int(id.id)])
-        return noErr
-    }, 1, &spec, nil, nil)
-    for (n, action) in actionsByID.enumerated() {
-        guard let s = shortcuts[action] else { continue }
-        var ref: EventHotKeyRef?
-        let id = EventHotKeyID(signature: OSType(0x57494E44), id: UInt32(n)) // 'WIND'
-        if RegisterEventHotKey(UInt32(s.key), carbonMods(s.mods), id, GetApplicationEventTarget(), 0, &ref) != noErr {
-            failed.append(action)
-        }
-    }
-    return failed
-}
-
 // MARK: - Menu bar app
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var item: NSStatusItem!
     let loginItem = NSMenuItem(title: "Launch at Login", action: #selector(toggleLogin), keyEquivalent: "")
+    let accessItem = NSMenuItem(title: "⚠︎ Allow Accessibility Access…", action: #selector(openAccessibilitySettings), keyEquivalent: "")
+    let groups: [[Action]] = [
+        [.center, .fullscreen],
+        [.leftHalf, .rightHalf, .topHalf, .bottomHalf],
+        [.upperLeft, .lowerLeft, .upperRight, .lowerRight],
+        [.nextDisplay, .previousDisplay],
+        [.nextThird, .previousThird],
+        [.larger, .smaller],
+        [.undo, .redo],
+    ]
+    lazy var editor = ShortcutsEditor(order: groups.flatMap { $0 }) { [weak self] in self?.buildMenu() }
 
     func applicationDidFinishLaunching(_ note: Notification) {
         if !AXIsProcessTrusted() { promptForAccessibility() }
-        let failed = registerHotkeys()
-
+        installHotkeyHandler()
+        registerHotkeys()
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         item.button?.image = NSImage(systemSymbolName: "rectangle.split.2x1", accessibilityDescription: "Winndow")
+        loginItem.target = self
+        buildMenu()
+    }
+
+    func buildMenu() {
         let menu = NSMenu()
         menu.delegate = self
-        let groups: [[Action]] = [
-            [.center, .fullscreen],
-            [.leftHalf, .rightHalf, .topHalf, .bottomHalf],
-            [.upperLeft, .lowerLeft, .upperRight, .lowerRight],
-            [.nextDisplay, .previousDisplay],
-            [.nextThird, .previousThird],
-            [.larger, .smaller],
-            [.undo, .redo],
-        ]
+        accessItem.target = self
+        menu.addItem(accessItem)
         for group in groups {
             for a in group {
-                let s = shortcuts[a]!
-                let mi = NSMenuItem(title: a.title, action: #selector(run(_:)), keyEquivalent: keyEquivalent(s.key))
-                mi.keyEquivalentModifierMask = s.mods
+                let s = shortcuts[a]
+                let mi = NSMenuItem(title: a.title, action: #selector(run(_:)), keyEquivalent: s?.char ?? "")
+                mi.keyEquivalentModifierMask = s?.mods ?? []
                 mi.tag = actionsByID.firstIndex(of: a)!
                 mi.target = self
-                if failed.contains(a) { mi.title += " (shortcut taken by another app)" }
+                if failedActions.contains(a) { mi.title += " (shortcut taken by another app)" }
                 menu.addItem(mi)
             }
             menu.addItem(.separator())
         }
-        loginItem.target = self
+        let edit = NSMenuItem(title: "Edit Shortcuts…", action: #selector(editShortcuts), keyEquivalent: ",")
+        edit.target = self
+        menu.addItem(edit)
         menu.addItem(loginItem)
         menu.addItem(NSMenuItem(title: "Quit Winndow", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         item.menu = menu
@@ -195,9 +140,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func menuWillOpen(_ menu: NSMenu) {
         loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        accessItem.isHidden = AXIsProcessTrusted()
+    }
+
+    @objc func openAccessibilitySettings() {
+        promptForAccessibility()
+        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
     }
 
     @objc func run(_ sender: NSMenuItem) { performAction(actionsByID[sender.tag]) }
+
+    @objc func editShortcuts() { editor.show() }
+
+    // Clicking the Dock or Finder icon while Winndow is already running opens the shortcuts editor.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        editor.show()
+        return false
+    }
 
     @objc func toggleLogin() {
         do {
