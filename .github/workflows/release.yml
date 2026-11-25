@@ -1,0 +1,16 @@
+name: Release
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./build.sh test
+      - run: VERSION="${GITHUB_REF_NAME#v}" ./build.sh
+      - run: gh release create "$GITHUB_REF_NAME" build/Winndow.zip --title "Winndow $GITHUB_REF_NAME" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
